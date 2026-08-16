@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Users, UserPlus, MessageSquare, Check, Share2, Sparkles, QrCode } from 'lucide-react';
-import { User, Chat } from '../types';
+import { X, UserPlus, MessageSquare, Check, QrCode } from 'lucide-react';
+import { User } from '../types';
 
 interface NewChatModalProps {
   users: User[];
@@ -31,7 +31,8 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
   const filteredUsers = availableUsers.filter(
     (u) =>
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.username.toLowerCase().includes(searchQuery.toLowerCase())
+      u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.bio && u.bio.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const toggleUserSelection = (userId: string) => {
@@ -71,8 +72,8 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#111b21] text-[#e9edef] w-full max-w-md rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-[#111b21] text-[#e9edef] w-full max-w-md rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="bg-[#202c33] p-4 flex items-center justify-between border-b border-white/10">
           <div className="flex items-center gap-2">
@@ -94,24 +95,24 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex border-b border-white/10 bg-[#111b21]">
+        <div className="flex border-b border-white/10 bg-[#111b21] overflow-x-auto no-scrollbar">
           <button
             id="tab-new-contacts"
             type="button"
             onClick={() => setTab('contacts')}
-            className={`flex-1 py-3 text-xs font-semibold text-center transition-colors border-b-2 ${
+            className={`flex-1 min-w-[80px] py-3 text-xs font-semibold text-center transition-colors border-b-2 ${
               tab === 'contacts'
                 ? 'border-[#00a884] text-[#00a884]'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            Contatos
+            Contatos do App
           </button>
           <button
             id="tab-new-group"
             type="button"
             onClick={() => setTab('new-group')}
-            className={`flex-1 py-3 text-xs font-semibold text-center transition-colors border-b-2 ${
+            className={`flex-1 min-w-[80px] py-3 text-xs font-semibold text-center transition-colors border-b-2 ${
               tab === 'new-group'
                 ? 'border-[#00a884] text-[#00a884]'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
@@ -123,7 +124,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
             id="tab-new-invite"
             type="button"
             onClick={() => setTab('invite')}
-            className={`flex-1 py-3 text-xs font-semibold text-center transition-colors border-b-2 ${
+            className={`flex-1 min-w-[70px] py-3 text-xs font-semibold text-center transition-colors border-b-2 ${
               tab === 'invite'
                 ? 'border-[#00a884] text-[#00a884]'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
@@ -137,27 +138,30 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {tab === 'contacts' && (
             <div>
-              {/* Search */}
+              {/* Search Bar */}
               <input
                 id="input-search-contacts"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar contato ou amigo..."
+                placeholder="Buscar contatos no aplicativo..."
                 className="w-full bg-[#202c33] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-gray-400 outline-none focus:border-[#00a884] mb-3"
               />
 
+              {/* Contact List */}
               <div className="space-y-1">
                 {filteredUsers.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400 text-xs">
-                    <p className="mb-2">Nenhum outro amigo encontrado ainda.</p>
-                    <button
-                      type="button"
-                      onClick={() => setTab('invite')}
-                      className="text-[#00a884] font-medium underline"
-                    >
-                      Copie o link e convide seus amigos!
-                    </button>
+                  <div className="text-center py-8 text-gray-400 text-xs space-y-3">
+                    <p>Nenhum amigo do seu convívio se cadastrou ainda.</p>
+                    <div className="flex flex-col gap-2 max-w-xs mx-auto">
+                      <button
+                        type="button"
+                        onClick={() => setTab('invite')}
+                        className="py-2 px-3 bg-[#00a884] text-white font-medium rounded-xl text-xs hover:bg-[#008f6f] transition-all"
+                      >
+                        Copie seu link de convite!
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   filteredUsers.map((user) => (
@@ -165,13 +169,13 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
                       key={user.id}
                       type="button"
                       onClick={() => handleStartDirectChat(user)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#202c33] text-left transition-colors active:scale-98"
+                      className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#202c33] text-left transition-colors active:scale-98 group"
                     >
                       <div className="relative">
                         <img
                           src={user.avatar}
                           alt={user.name}
-                          className="w-11 h-11 rounded-full object-cover border border-white/10"
+                          className="w-11 h-11 rounded-full object-cover border border-white/10 bg-[#202c33]"
                         />
                         {user.online && (
                           <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#00a884] border-2 border-[#111b21] rounded-full" />
@@ -181,7 +185,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
                         <h4 className="font-semibold text-sm text-white truncate">{user.name}</h4>
                         <p className="text-xs text-gray-400 truncate">{user.bio || 'Disponível'}</p>
                       </div>
-                      <MessageSquare size={16} className="text-[#00a884]" />
+                      <MessageSquare size={16} className="text-[#00a884] opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
                   ))
                 )}
@@ -260,9 +264,9 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
               </div>
 
               <div>
-                <h4 className="text-sm font-semibold text-white">Convide seus amigos para conversar</h4>
+                <h4 className="text-sm font-semibold text-white">Convide sua família e amigos</h4>
                 <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
-                  Envie este link para qualquer amigo. Quando ele abrir no celular Android ou computador, ele entrará instantaneamente nas conversas com você!
+                  Este aplicativo é privado. Apenas pessoas que acessarem este link e fizerem login aparecerão na sua lista de contatos.
                 </p>
               </div>
 
