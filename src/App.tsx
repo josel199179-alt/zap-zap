@@ -17,7 +17,7 @@ import { MessageSquare, Smartphone, Download, X } from 'lucide-react';
 import { 
   saveUser, subscribeToUsers, subscribeToChats, subscribeToStatus, 
   subscribeToMessages, createChat, sendMessage, reactToMessage, 
-  deleteMessageDB, postStatus, markStatusViewed 
+  deleteMessageDB, postStatus, markStatusViewed, getDirectChatId 
 } from './lib/firebaseUtils';
 
 const USER_STORAGE_KEY = 'zapzap_current_user';
@@ -252,20 +252,55 @@ export default function App() {
     participants: string[];
   }) => {
     try {
+      if (data.type === 'direct' && data.participants.length === 2) {
+        const otherId = data.participants.find((p) => p !== currentUser.id) || data.participants[0];
+        const directChatId = getDirectChatId(currentUser.id, otherId);
+
+        // Check if direct chat already exists
+        const existing = chats.find(
+          (c) =>
+            c.id === directChatId ||
+            (c.type === 'direct' &&
+              c.participants.includes(otherId) &&
+              c.participants.includes(currentUser.id))
+        );
+
+        if (existing) {
+          setActiveChatId(existing.id);
+          return;
+        }
+
+        const otherUser = users.find((u) => u.id === otherId);
+        const newChat: Chat = {
+          id: directChatId,
+          type: 'direct',
+          name: otherUser ? otherUser.name : data.name || 'Conversa',
+          avatar: otherUser ? otherUser.avatar : (data.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${directChatId}`),
+          participants: [currentUser.id, otherId],
+          createdAt: Date.now(),
+          createdBy: currentUser.id,
+        };
+
+        await createChat(newChat);
+        setActiveChatId(newChat.id);
+        return;
+      }
+
       const newChatId = `chat-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
       const newChat: Chat = {
         id: newChatId,
         type: data.type || (data.participants.length > 2 ? 'group' : 'direct'),
-        name: data.name || 'Nova Conversa',
-        avatar: data.avatar || 
-          (data.type === 'group' 
-            ? 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=150&auto=format&fit=crop&q=80' 
+        name: data.name || 'Novo Grupo',
+        avatar:
+          data.avatar ||
+          (data.type === 'group'
+            ? 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=150&auto=format&fit=crop&q=80'
             : `https://api.dicebear.com/7.x/bottts/svg?seed=${newChatId}`),
         participants: data.participants,
         createdAt: Date.now(),
         createdBy: currentUser.id,
       };
-      
+
       await createChat(newChat);
       setActiveChatId(newChat.id);
     } catch (err) {
@@ -291,7 +326,7 @@ export default function App() {
         mediaUrl: data.mediaUrl,
         bgColor: data.bgColor || '#00a884',
         timestamp: Date.now(),
-        viewers: []
+        viewers: [],
       };
       await postStatus(newStory);
     } catch (err) {
@@ -310,18 +345,24 @@ export default function App() {
 
   // Reply to status directly into direct chat
   const handleReplyToStatus = async (story: StatusStory, text: string) => {
+    const otherId = story.userId;
+    const directChatId = getDirectChatId(currentUser.id, otherId);
+
     let directChat = chats.find(
-      (c) => c.type === 'direct' && c.participants.includes(story.userId)
+      (c) =>
+        c.id === directChatId ||
+        (c.type === 'direct' &&
+          c.participants.includes(otherId) &&
+          c.participants.includes(currentUser.id))
     );
 
     if (!directChat) {
-      const newChatId = `chat-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
       directChat = {
-        id: newChatId,
+        id: directChatId,
         type: 'direct',
         name: story.userName,
         avatar: story.userAvatar,
-        participants: [story.userId, currentUser.id],
+        participants: [currentUser.id, otherId],
         createdAt: Date.now(),
         createdBy: currentUser.id,
       };
@@ -330,7 +371,7 @@ export default function App() {
 
     if (directChat) {
       setActiveChatId(directChat.id);
-      
+
       const newMsg: Message = {
         id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         chatId: directChat.id,
@@ -348,16 +389,48 @@ export default function App() {
         },
         timestamp: Date.now(),
         status: 'delivered',
-        reactions: {}
+        reactions: {},
       };
-      
+
       await sendMessage(directChat.id, newMsg);
     }
   };
 
+  // Dynamically resolve names, avatars, and latest message for all chats
+  const enrichedChats = useMemo(() => {
+    if (!currentUser) return [];
+    return chats.map((chat) => {
+      let displayName = chat.name;
+      let displayAvatar = chat.avatar;
+
+      if (chat.type === 'direct') {
+        const otherUserId =
+          chat.participants.find((p) => p !== currentUser.id) || chat.participants[0];
+        const otherUser = users.find((u) => u.id === otherUserId);
+        if (otherUser) {
+          displayName = otherUser.name;
+          displayAvatar = otherUser.avatar;
+        }
+      }
+
+      const localMsgs = messagesMap[chat.id];
+      const lastMsg =
+        localMsgs && localMsgs.length > 0
+          ? localMsgs[localMsgs.length - 1]
+          : chat.lastMessage;
+
+      return {
+        ...chat,
+        name: displayName,
+        avatar: displayAvatar,
+        lastMessage: lastMsg,
+      };
+    });
+  }, [chats, users, currentUser, messagesMap]);
+
   const activeChat = useMemo(() => {
-    return chats.find((c) => c.id === activeChatId) || null;
-  }, [chats, activeChatId]);
+    return enrichedChats.find((c) => c.id === activeChatId) || null;
+  }, [enrichedChats, activeChatId]);
 
   const activeMessages = useMemo(() => {
     return activeChatId ? messagesMap[activeChatId] || [] : [];
@@ -430,15 +503,7 @@ export default function App() {
           }`}
         >
           <ChatList
-            chats={chats.map(c => {
-               // derive lastMessage and unreadCount manually or implement them in Firebase later
-               const msgs = messagesMap[c.id] || [];
-               return {
-                 ...c,
-                 lastMessage: msgs.length > 0 ? msgs[msgs.length - 1] : undefined,
-                 unreadCount: 0 // Simplification for now, as we removed the read receipt logic
-               }
-            })}
+            chats={enrichedChats}
             statusStories={statusStories}
             currentUser={currentUser}
             activeChatId={activeChatId}
