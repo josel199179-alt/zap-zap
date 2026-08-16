@@ -8,6 +8,7 @@ import { CreateStatusModal } from './components/CreateStatusModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { NewChatModal } from './components/NewChatModal';
 import { CallModal } from './components/CallModal';
+import { WelcomeScreen } from './components/WelcomeScreen';
 import { soundManager } from './utils/sound';
 import { Chat, Message, StatusStory, TabType, ThemeMode, User, WallpaperStyle } from './types';
 import { MessageSquare, Smartphone, Download, X } from 'lucide-react';
@@ -20,7 +21,7 @@ import {
 const USER_STORAGE_KEY = 'zapzap_current_user';
 const WALLPAPER_STORAGE_KEY = 'zapzap_wallpaper';
 
-function getInitialUser(): User {
+function getInitialUser(): User | null {
   if (typeof window !== 'undefined') {
     const saved = localStorage.getItem(USER_STORAGE_KEY);
     if (saved) {
@@ -31,20 +32,11 @@ function getInitialUser(): User {
       }
     }
   }
-  const randomId = `user-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
-  return {
-    id: randomId,
-    name: 'Eu (Você)',
-    username: randomId,
-    avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${randomId}`,
-    bio: 'Disponível no ZapZap ✨',
-    online: true,
-    lastSeen: Date.now(),
-  };
+  return null;
 }
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<User>(getInitialUser);
+  const [currentUser, setCurrentUser] = useState<User | null>(getInitialUser);
   const [chats, setChats] = useState<Chat[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>({});
@@ -82,11 +74,13 @@ export default function App() {
 
   // Save initial user to server on mount
   useEffect(() => {
+    if (!currentUser) return;
     saveUser(currentUser).catch(console.error);
   }, [currentUser]);
 
   // Firebase Subscriptions
   useEffect(() => {
+    if (!currentUser) return;
     const unsubUsers = subscribeToUsers(setUsers);
     const unsubStatus = subscribeToStatus(setStatusStories);
     const unsubChats = subscribeToChats((allChats) => {
@@ -98,10 +92,10 @@ export default function App() {
       unsubStatus();
       unsubChats();
     };
-  }, [currentUser.id]);
+  }, [currentUser?.id]);
 
   useEffect(() => {
-    if (!activeChatId) return;
+    if (!activeChatId || !currentUser) return;
 
     const unsubMessages = subscribeToMessages(activeChatId, (messages) => {
       setMessagesMap(prev => {
@@ -118,7 +112,7 @@ export default function App() {
     });
 
     return () => unsubMessages();
-  }, [activeChatId, currentUser.id]);
+  }, [activeChatId, currentUser?.id]);
 
   // PWA Install Event Handler for Android
   useEffect(() => {
@@ -152,7 +146,7 @@ export default function App() {
     audioDuration?: number;
     replyTo?: Message['replyTo'];
   }) => {
-    if (!activeChatId) return;
+    if (!activeChatId || !currentUser) return;
 
     const newMsg: Message = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
@@ -180,7 +174,7 @@ export default function App() {
 
   // React to a message
   const handleReactMessage = async (messageId: string, emoji: string) => {
-    if (!activeChatId) return;
+    if (!activeChatId || !currentUser) return;
     const msg = messagesMap[activeChatId]?.find(m => m.id === messageId);
     if (!msg) return;
 
@@ -207,7 +201,7 @@ export default function App() {
 
   // Delete message for everyone
   const handleDeleteMessage = async (messageId: string) => {
-    if (!activeChatId) return;
+    if (!activeChatId || !currentUser) return;
     try {
       await deleteMessageDB(activeChatId, messageId);
     } catch (err) {
@@ -335,6 +329,10 @@ export default function App() {
   }, [activeChatId, messagesMap]);
 
   const activeTyping = activeChatId ? typingMap[activeChatId] : undefined;
+
+  if (!currentUser) {
+    return <WelcomeScreen onComplete={setCurrentUser} />;
+  }
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#0c1317] overflow-hidden">
