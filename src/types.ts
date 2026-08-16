@@ -6,6 +6,8 @@ export interface User {
   bio: string;
   online: boolean;
   lastSeen: number;
+  role?: 'admin' | 'user';
+  isApproved?: boolean;
 }
 
 export type MessageType = 'text' | 'image' | 'audio' | 'system';

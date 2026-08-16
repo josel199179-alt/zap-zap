@@ -27,13 +27,13 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({
   const [copied, setCopied] = useState(false);
 
   // Other users list
-  const availableUsers = users.filter((u) => u.id !== currentUser.id);
+  const availableUsers = users.filter((u) => u.id !== currentUser.id && u.isApproved !== false);
   const filteredUsers = availableUsers.filter(
     (u) =>
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (u.bio && u.bio.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  ).sort((a, b) => a.name.localeCompare(b.name));
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUsers((prev) =>

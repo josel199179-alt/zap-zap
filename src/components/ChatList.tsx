@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Search,
   MoreVertical,
-  Camera,
+  Camera, Shield,
   MessageSquarePlus,
   Check,
   CheckCheck,
@@ -31,6 +31,7 @@ interface ChatListProps {
   onViewStatus: (stories: StatusStory[]) => void;
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
+  onOpenAdmin?: () => void;
 }
 
 export const ChatList: React.FC<ChatListProps> = ({
@@ -46,6 +47,7 @@ export const ChatList: React.FC<ChatListProps> = ({
   onViewStatus,
   activeTab,
   onTabChange,
+  onOpenAdmin,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -95,6 +97,17 @@ export const ChatList: React.FC<ChatListProps> = ({
         </div>
 
         <div className="flex items-center gap-2 text-gray-300">
+          {currentUser.role === 'admin' && (
+            <button
+              id="btn-header-admin"
+              type="button"
+              onClick={onOpenAdmin}
+              className="p-2 rounded-full hover:bg-white/10 active:scale-95 transition-colors text-yellow-500"
+              title="Administração"
+            >
+              <Shield size={20} />
+            </button>
+          )}
           <button
             id="btn-header-cam"
             type="button"

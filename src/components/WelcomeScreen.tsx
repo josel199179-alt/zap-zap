@@ -27,6 +27,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
       bio: bio.trim() || 'Disponível no ZapZap',
       online: true,
       lastSeen: Date.now(),
+      role: 'user',
+      isApproved: false,
     };
 
     try {

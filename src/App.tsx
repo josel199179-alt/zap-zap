@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ChatList } from './components/ChatList';
 import { ChatRoom } from './components/ChatRoom';
 import { CameraCaptureModal } from './components/CameraCaptureModal';
@@ -8,7 +8,9 @@ import { CreateStatusModal } from './components/CreateStatusModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { NewChatModal } from './components/NewChatModal';
 import { CallModal } from './components/CallModal';
+import { AdminPanelModal } from './components/AdminPanelModal';
 import { WelcomeScreen } from './components/WelcomeScreen';
+import { PendingApprovalScreen } from './components/PendingApprovalScreen';
 import { soundManager } from './utils/sound';
 import { Chat, Message, StatusStory, TabType, ThemeMode, User, WallpaperStyle } from './types';
 import { MessageSquare, Smartphone, Download, X } from 'lucide-react';
@@ -53,10 +55,16 @@ export default function App() {
   const [showCamera, setShowCamera] = useState(false);
   const [showNewChat, setShowNewChat] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const [showCreateStatus, setShowCreateStatus] = useState(false);
   const [viewingStatusStories, setViewingStatusStories] = useState<StatusStory[] | null>(null);
   const [viewingMediaMessage, setViewingMediaMessage] = useState<Message | null>(null);
   const [activeCall, setActiveCall] = useState<{ isVideo: boolean; chat: Chat } | null>(null);
+
+  // Notifications
+  const [newUserNotification, setNewUserNotification] = useState<string | null>(null);
+  const prevUsersRef = useRef<Set<string>>(new Set());
+  const isInitialUsersLoad = useRef(true);
 
   // PWA Install state
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -81,7 +89,27 @@ export default function App() {
   // Firebase Subscriptions
   useEffect(() => {
     if (!currentUser) return;
-    const unsubUsers = subscribeToUsers(setUsers);
+    const unsubUsers = subscribeToUsers((newUsers) => {
+      setUsers(newUsers);
+
+      if (isInitialUsersLoad.current) {
+        isInitialUsersLoad.current = false;
+        prevUsersRef.current = new Set(newUsers.map((u) => u.id));
+      } else {
+        const currentIds = new Set(newUsers.map((u) => u.id));
+        const newFriends = newUsers.filter(
+          (u) => !prevUsersRef.current.has(u.id) && u.id !== currentUser.id
+        );
+
+        if (newFriends.length > 0) {
+          soundManager.playReceivedSound();
+          setNewUserNotification(`${newFriends[0].name} acabou de se cadastrar no ZapZap!`);
+          setTimeout(() => setNewUserNotification(null), 6000);
+        }
+
+        prevUsersRef.current = currentIds;
+      }
+    });
     const unsubStatus = subscribeToStatus(setStatusStories);
     const unsubChats = subscribeToChats((allChats) => {
       setChats(allChats.filter(c => c.participants.includes(currentUser.id)));
@@ -334,6 +362,10 @@ export default function App() {
     return <WelcomeScreen onComplete={setCurrentUser} />;
   }
 
+  if (currentUser.isApproved === false) {
+    return <PendingApprovalScreen currentUser={currentUser} />;
+  }
+
   return (
     <div className="h-screen w-screen flex flex-col bg-[#0c1317] overflow-hidden">
       {/* Optional Android PWA Prompt Banner */}
@@ -355,6 +387,26 @@ export default function App() {
               type="button"
               onClick={() => setShowInstallBanner(false)}
               className="p-1 text-white hover:opacity-80"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* New User Notification Banner */}
+      {newUserNotification && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-[#00a884] text-white px-4 py-3 rounded-full shadow-lg border border-white/20 flex items-center gap-3">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+            </span>
+            <span className="text-sm font-medium">{newUserNotification}</span>
+            <button
+              type="button"
+              onClick={() => setNewUserNotification(null)}
+              className="ml-2 p-1 hover:bg-black/10 rounded-full transition-colors"
             >
               <X size={16} />
             </button>
@@ -388,6 +440,7 @@ export default function App() {
             }}
             onOpenNewChat={() => setShowNewChat(true)}
             onOpenProfile={() => setShowProfile(true)}
+            onOpenAdmin={() => setShowAdmin(true)}
             onOpenCam={() => setShowCamera(true)}
             onOpenCreateStatus={() => setShowCreateStatus(true)}
             onViewStatus={(stories) => setViewingStatusStories(stories)}
@@ -480,6 +533,13 @@ export default function App() {
           currentUser={currentUser}
           onCreateChat={handleCreateChat}
           onClose={() => setShowNewChat(false)}
+        />
+      )}
+
+      {showAdmin && (
+        <AdminPanelModal
+          users={users}
+          onClose={() => setShowAdmin(false)}
         />
       )}
 
