@@ -1,0 +1,62 @@
+{
+  "collections": [
+    {
+      "name": "users",
+      "document": {
+        "id": "string",
+        "name": "string",
+        "avatar": "string",
+        "online": "boolean",
+        "lastSeen": "number"
+      }
+    },
+    {
+      "name": "chats",
+      "document": {
+        "id": "string",
+        "type": "string",
+        "name": "string",
+        "avatar": "string",
+        "participants": ["string"],
+        "createdAt": "number",
+        "createdBy": "string",
+        "description": "string",
+        "lastMessage": "map"
+      }
+    },
+    {
+      "name": "messages",
+      "document": {
+        "id": "string",
+        "chatId": "string",
+        "senderId": "string",
+        "senderName": "string",
+        "senderAvatar": "string",
+        "content": "string",
+        "type": "string",
+        "mediaUrl": "string",
+        "mediaCaption": "string",
+        "timestamp": "number",
+        "status": "string",
+        "reactions": "map",
+        "replyTo": "map",
+        "deleted": "boolean"
+      }
+    },
+    {
+      "name": "statusStories",
+      "document": {
+        "id": "string",
+        "userId": "string",
+        "userName": "string",
+        "userAvatar": "string",
+        "type": "string",
+        "content": "string",
+        "mediaUrl": "string",
+        "bgColor": "string",
+        "timestamp": "number",
+        "viewers": ["string"]
+      }
+    }
+  ]
+}

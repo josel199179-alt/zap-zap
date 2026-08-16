@@ -1,0 +1,22 @@
+{
+  "short_name": "ZapZap",
+  "name": "ZapZap Mensagens Privadas",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#111b21",
+  "theme_color": "#00a884",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/"
+}
