@@ -92,6 +92,13 @@ export default function App() {
     const unsubUsers = subscribeToUsers((newUsers) => {
       setUsers(newUsers);
 
+      // Auto-update currentUser if status (approval / role) changed on server
+      const self = newUsers.find((u) => u.id === currentUser.id);
+      if (self && (self.isApproved !== currentUser.isApproved || self.role !== currentUser.role)) {
+        setCurrentUser(self);
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(self));
+      }
+
       if (isInitialUsersLoad.current) {
         isInitialUsersLoad.current = false;
         prevUsersRef.current = new Set(newUsers.map((u) => u.id));

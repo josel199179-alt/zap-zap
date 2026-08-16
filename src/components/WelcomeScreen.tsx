@@ -32,11 +32,19 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
     };
 
     try {
-      await saveUser(newUser);
+      // Save locally first so the user state is never lost
       localStorage.setItem('zapzap_current_user', JSON.stringify(newUser));
+
+      // Attempt to save to Firestore with a 4s timeout fallback
+      const savePromise = saveUser(newUser);
+      const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 4000));
+      await Promise.race([savePromise, timeoutPromise]);
+
       onComplete(newUser);
     } catch (error) {
-      console.error('Failed to create user:', error);
+      console.error('Failed to save user to server:', error);
+      // Fallback: still proceed so user is never blocked
+      onComplete(newUser);
     } finally {
       setLoading(false);
     }
