@@ -7,13 +7,31 @@ export const getDirectChatId = (userId1: string, userId2: string): string => {
   return `direct_${sorted[0]}_${sorted[1]}`;
 };
 
+/** Recursively strips undefined values so Firestore never throws unsupported field errors */
+export function cleanData<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(cleanData) as unknown as T;
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = cleanData(value);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 export const saveUser = async (user: User) => {
   await setDoc(
     doc(db, 'users', user.id),
-    {
+    cleanData({
       ...user,
       lastSeen: Date.now(),
-    },
+    }),
     { merge: true }
   );
 };
@@ -25,7 +43,7 @@ export const fetchUsers = async (): Promise<User[]> => {
 };
 
 export const createChat = async (chat: Chat) => {
-  await setDoc(doc(db, 'chats', chat.id), chat, { merge: true });
+  await setDoc(doc(db, 'chats', chat.id), cleanData(chat), { merge: true });
 };
 
 export const fetchChats = async (userId: string): Promise<Chat[]> => {
@@ -42,16 +60,17 @@ export const fetchChats = async (userId: string): Promise<Chat[]> => {
 };
 
 export const sendMessage = async (chatId: string, message: Message) => {
+  const sanitizedMsg = cleanData(message);
   // 1. Save message to subcollection
-  await setDoc(doc(db, `chats/${chatId}/messages`, message.id), message);
+  await setDoc(doc(db, `chats/${chatId}/messages`, message.id), sanitizedMsg);
 
   // 2. Update chat document with lastMessage and last updated timestamp
   await setDoc(
     doc(db, 'chats', chatId),
-    {
-      lastMessage: message,
+    cleanData({
+      lastMessage: sanitizedMsg,
       updatedAt: message.timestamp || Date.now(),
-    },
+    }),
     { merge: true }
   ).catch((err) => console.error('Failed to update chat lastMessage:', err));
 };
@@ -63,7 +82,7 @@ export const reactToMessage = async (
   userId: string,
   reactions: Record<string, string[]>
 ) => {
-  await setDoc(doc(db, `chats/${chatId}/messages`, messageId), { reactions }, { merge: true });
+  await setDoc(doc(db, `chats/${chatId}/messages`, messageId), cleanData({ reactions }), { merge: true });
 };
 
 export const deleteMessageDB = async (chatId: string, messageId: string) => {
@@ -76,7 +95,7 @@ export const deleteMessageDB = async (chatId: string, messageId: string) => {
 };
 
 export const postStatus = async (story: StatusStory) => {
-  await setDoc(doc(db, 'statusStories', story.id), story);
+  await setDoc(doc(db, 'statusStories', story.id), cleanData(story));
 };
 
 export const markStatusViewed = async (storyId: string, userId: string) => {

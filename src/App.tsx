@@ -200,7 +200,20 @@ export default function App() {
       reactions: {}
     };
 
+    // Optimistic instant UI update
+    setMessagesMap((prev) => {
+      const currentList = prev[activeChatId] || [];
+      if (currentList.some((m) => m.id === newMsg.id)) return prev;
+      return {
+        ...prev,
+        [activeChatId]: [...currentList, newMsg],
+      };
+    });
+
     try {
+      if (activeChat) {
+        await createChat(activeChat);
+      }
       await sendMessage(activeChatId, newMsg);
     } catch (err) {
       console.error('Failed to send message:', err);
